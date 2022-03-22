@@ -9,11 +9,14 @@ class CalcMesh:
 
     def __init__(self, nodes_coords, tetrs_points):
         self.nodes = np.array([nodes_coords[0::3], nodes_coords[1::3], nodes_coords[2::3]])
-
-        self.temperature = np.power(np.power(50. - self.nodes[1, :], 2) + np.power(10. - self.nodes[2, :], 2), 0.5) + 20.
+        self.a_1, self.a_2 = min(nodes_coords[0::3]), max(nodes_coords[0::3])
+        self.b_1, self.b_2 = min(nodes_coords[1::3]), max(nodes_coords[1::3])
+        self.c_1, self.c_2 = min(nodes_coords[2::3]), max(nodes_coords[2::3])
+        #print(a_1, a_2, b_1, b_2, c_1, c_2)
+        self.temperature = np.power(np.power(self.b_2 - self.nodes[1, :], 2) + np.power(self.c_2 - self.nodes[2, :], 2), 0.5) + 20.
         self.temperature_c = self.temperature
         n = int(len(nodes_coords) / 3)
-        self.velocity = np.array([[0 for i in range(n)], nodes_coords[1::3] + 10., [0 for i in range(n)]])
+        self.velocity = np.array([[0 for i in range(n)], nodes_coords[1::3] - self.b_1, [0 for i in range(n)]])
 
         self.tetrs = np.array([tetrs_points[0::4], tetrs_points[1::4], tetrs_points[2::4], tetrs_points[3::4]])
         self.tetrs -= 1

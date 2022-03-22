@@ -16,14 +16,14 @@ class CalcMesh:
         self.temperature = np.power(np.power(self.b_2 - self.nodes[1, :], 2) + np.power(self.c_2 - self.nodes[2, :], 2), 0.5) + 20.
         self.temperature_c = self.temperature
         n = int(len(nodes_coords) / 3)
-        self.velocity = np.array([[0 for i in range(n)], nodes_coords[1::3] - self.b_1, [0 for i in range(n)]])
+        self.velocity = np.array([nodes_coords[0::3], nodes_coords[1::3] - self.b_1, nodes_coords[2::3] - self.c_1])
 
         self.tetrs = np.array([tetrs_points[0::4], tetrs_points[1::4], tetrs_points[2::4], tetrs_points[3::4]])
         self.tetrs -= 1
 
     def move(self, tau, i):
-        self.temperature = self.temperature_c + tau * i * (15 + 0.1 * (50. -self.nodes[1, :]))
-        self.nodes += self.velocity * tau * self.temperature * 0.002
+        self.temperature = self.temperature_c + tau * i * (15 + 0.1 * (self.b_2 -self.nodes[1, :]))
+        self.nodes += self.velocity * tau * self.temperature * 0.001
 
     def snapshot(self, snap_number):
         unstructuredGrid = vtk.vtkUnstructuredGrid()

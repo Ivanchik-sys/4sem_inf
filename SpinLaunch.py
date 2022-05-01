@@ -31,7 +31,10 @@ theta = 0
 g = 9.8
 rho = 2700
 
-V = VectorFunctionSpace(mesh, 'P', 1)
+V = VectorFunctionSpace(mesh, 'Lagrange', 1)
+
+domains = MeshFunction("size_t", mesh, mesh.topology().dim())
+boundaries = MeshFunction("size_t", mesh, mesh.topology().dim()-1)
 
 
 def epsilon(u):
@@ -42,17 +45,27 @@ def sigma(u):
     return Lambda * nabla_div(u) * Identity(d) + 2*mu*epsilon(u)
 
 
+def boundary(x, on_boundary):
+    return on_boundary
+
+
 f_g_ex, f_g_ey, f_g_ez = "0", "-g * sin(theta)", "-g * cos(theta)"
 #f_c_ex, f_c_ey, f_c_ez = 'abs(x[0]) * sqrt(x[0]*x[0] + x[1]*x[1]) * omega*omega', 'abs(x[1]) * sqrt(x[0]*x[0] + x[1]*x[1]) * omega*omega', '0'
 f_ex, f_ey, f_ez = f_g_ex, f_g_ey, f_g_ez
 
-f = Expression((f_ex, f_ey, f_ez), g=g, theta=theta)
+f = Expression(('0', '0', '-5'), degree=1)
+print('OK')
 #f.omega = omega
+
+bc = DirichletBC(V, Constant((0, 0, 0)), boundary)
 
 u = TrialFunction(V)
 d = u.geometric_dimension()
 v = TestFunction(V)
 a = inner(sigma(u), epsilon(v))*dx
 L = dot(f, v)*dx
+
+u = Function(V)
+solve(a == L, u, bc)
 
 File('catapult/displacement.pvd') << u

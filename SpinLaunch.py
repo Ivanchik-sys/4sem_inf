@@ -3,11 +3,12 @@ from ufl import nabla_grad
 from ufl import nabla_div
 import os
 from math import *
+import numpy as np
 
 
 path = os.path.dirname(os.path.abspath(__file__))
 
-mesh = Mesh(os.path.join(path, 'prototype_1.xml'))
+mesh = Mesh(os.path.join(path, 'Accelerator.xml'))
 
 mesh_points = mesh.coordinates()
 
@@ -26,15 +27,14 @@ E = 70 * 1e6  # module Unga
 Lambda = nu * E / ((1 + nu) * (1 - 2*nu))
 mu = E / (2 * (1 + nu))  # Lame coefficients aluminium
 
-omega = pi / 4
-theta = 0
-g = 9.8
-rho = 2700
-
 V = VectorFunctionSpace(mesh, 'Lagrange', 1)
 
 domains = MeshFunction("size_t", mesh, mesh.topology().dim())
 boundaries = MeshFunction("size_t", mesh, mesh.topology().dim()-1)
+
+
+def ctan(x):
+    return 1 / tan(x)
 
 
 def epsilon(u):
@@ -49,23 +49,55 @@ def boundary(x, on_boundary):
     return on_boundary
 
 
-f_g_ex, f_g_ey, f_g_ez = "0", "-g * sin(theta)", "-g * cos(theta)"
-#f_c_ex, f_c_ey, f_c_ez = 'abs(x[0]) * sqrt(x[0]*x[0] + x[1]*x[1]) * omega*omega', 'abs(x[1]) * sqrt(x[0]*x[0] + x[1]*x[1]) * omega*omega', '0'
-f_ex, f_ey, f_ez = f_g_ex, f_g_ey, f_g_ez
-
-f = Expression(('0', '0', '-5'), degree=1)
-print('OK')
-#f.omega = omega
-
 bc = DirichletBC(V, Constant((0, 0, 0)), boundary)
 
-u = TrialFunction(V)
-d = u.geometric_dimension()
-v = TestFunction(V)
-a = inner(sigma(u), epsilon(v))*dx
-L = dot(f, v)*dx
+vtkfile = File('catapult/displacement.pvd')
 
-u = Function(V)
-solve(a == L, u, bc)
+T = 118
+omega_0 = 11.639
+eps = omega_0 / T
+alpha = 0
+beta = pi / 6
+g = 9.8
+rho = 2700
+u_1 = Function(V)
+dt = 1
+for i in range(int(T / dt)):
 
-File('catapult/displacement.pvd') << u
+    omega = eps * i * dt
+    gamma = (omega * i * dt) / 2
+    a11 = cos(alpha)*cos(gamma) - cos(beta)*sin(alpha)*sin(gamma)
+    a12 = -cos(gamma)*sin(alpha) - cos(alpha)*cos(beta)*sin(gamma)
+    a13 = sin(beta)*sin(gamma)
+    a21 = cos(beta)*cos(gamma)*sin(alpha) + cos(alpha)*sin(gamma)
+    a22 = cos(alpha)*cos(beta)*cos(gamma) - sin(alpha)*sin(gamma)
+    a23 = -cos(gamma)*sin(beta)
+    a31 = sin(alpha)*sin(beta)
+    a32 = cos(alpha)*sin(beta)
+    a33 = cos(beta)
+    A = np.array([[a11, a12, a13], [a21, a22, a23], [a31, a32, a33]])
+    v_x, v_y, v_z = A @ np.array([[1], [0], [0]]), A @ np.array([[0], [1], [0]]), A @ np.array([[0], [0], [1]])
+    v_g = np.array([0, 0, -1])
+    cosx, cosy, cosz = (v_g @ v_x)[0], (v_g @ v_y)[0], (v_g @ v_z)[0]
+
+    f_g_ex, f_g_ey, f_g_ez = "g * rho * cosx", "g * rho * cosy", "g * rho * cosz"
+    f_c_ex, f_c_ey, f_c_ez = "x[0] * omega*omega * rho", "x[1] * omega*omega * rho", "0"
+    f_aa_x, f_aa_y, f_aa_z = "eps * x[0] * rho", "eps * x[1] * rho", "0"
+    f_ex = f_g_ex + "+" + f_c_ex + "+" + f_aa_x
+    f_ey = f_g_ey + "+" + f_c_ey + "+" + f_aa_y
+    f_ez = f_g_ez + "+" + f_c_ez + "+" + f_aa_z
+
+    f = Expression((f_ex, f_ey, f_ez), g=g, rho=rho, omega=omega, eps=eps, cosx=cosx, cosy=cosy, cosz=cosz, degree=2)
+
+    u = TrialFunction(V)
+    d = u.geometric_dimension()
+    v = TestFunction(V)
+    T = Expression(("0", "0", "0"), degree=2)
+    a = inner(sigma(u), epsilon(v))*dx
+    L = dot(f, v)*dx + dot(T, v)*ds
+
+    u = Function(V)
+    solve(a == L, u, bc)
+    u_1.assign(u)
+    vtkfile << (u_1, i * dt)
+

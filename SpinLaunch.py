@@ -2,7 +2,6 @@ from fenics import *
 from ufl import nabla_grad
 from ufl import nabla_div
 import os
-from math import *
 import numpy as np
 
 
@@ -23,11 +22,11 @@ print('parameters:', min_x, max_x, min_y, max_y, min_z, max_z)
 print('lengths:', -min_x + max_x, -min_y + max_y, -min_z + max_z)
 
 nu = 0.34  # poisson coefficient
-E = 70 * 1e6  # module Unga
+E = 70 * 1e6  # module Unga in SI
 Lambda = nu * E / ((1 + nu) * (1 - 2*nu))
 mu = E / (2 * (1 + nu))  # Lame coefficients aluminium
 
-V = VectorFunctionSpace(mesh, 'Lagrange', 1)
+V = VectorFunctionSpace(mesh, 'P', 1)
 
 domains = MeshFunction("size_t", mesh, mesh.topology().dim())
 boundaries = MeshFunction("size_t", mesh, mesh.topology().dim()-1)
@@ -51,16 +50,17 @@ def boundary(x, on_boundary):
 
 bc = DirichletBC(V, Constant((0, 0, 0)), boundary)
 
-vtkfile = File('catapult/displacement.pvd')
+vtkfile_1 = File('catapult/displacement.pvd')
+vtkfile_2 = File('catapult/von_mises.pvd')
 
-T = 118
-omega_0 = 11.639
+T = 118  # seconds
+omega_0 = 11.639  # rad / s
 eps = omega_0 / T
 alpha = 0
 beta = pi / 6
-g = 9.8
-rho = 2700
-u_1 = Function(V)
+g = 9.8  # in SI
+rho = 2700  # kg / m3
+u_1, u_2 = Function(V), Function(V)
 dt = 1
 for i in range(int(T / dt)):
 
@@ -98,6 +98,14 @@ for i in range(int(T / dt)):
 
     u = Function(V)
     solve(a == L, u, bc)
+
+    s = sigma(u) - (1. / 3) * tr(sigma(u)) * Identity(d)
+    von_Mises = sqrt(1.5 * inner(s, s))
+    V1 = FunctionSpace(mesh, 'P', 1)
+    von_Mises = project(von_Mises, V1)
+
     u_1.assign(u)
-    vtkfile << (u_1, i * dt)
+    u_2.assign(von_Mises)
+    vtkfile_1 << (u_1, i * dt)
+    vtkfile_2 << (u_2, i * dt)
 

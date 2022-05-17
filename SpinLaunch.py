@@ -22,7 +22,7 @@ print('parameters:', min_x, max_x, min_y, max_y, min_z, max_z)
 print('lengths:', -min_x + max_x, -min_y + max_y, -min_z + max_z)
 
 nu = 0.34  # poisson coefficient
-E = 70 * 1e6  # module Unga in SI
+E = 70 * 1e9  # module Unga in SI
 Lambda = nu * E / ((1 + nu) * (1 - 2*nu))
 mu = E / (2 * (1 + nu))  # Lame coefficients aluminium
 
@@ -44,11 +44,11 @@ def sigma(u):
     return Lambda * nabla_div(u) * Identity(d) + 2*mu*epsilon(u)
 
 
-def boundary(x, on_boundary):
-    return on_boundary
+def clamped_boundary(x, on_boundary):
+    return on_boundary and near(x[2], -1)
 
 
-bc = DirichletBC(V, Constant((0, 0, 0)), boundary)
+bc = DirichletBC(V, Constant((0, 0, 0)), clamped_boundary)
 
 vtkfile_1 = File('catapult/displacement.pvd')
 vtkfile_2 = File('catapult/von_mises.pvd')

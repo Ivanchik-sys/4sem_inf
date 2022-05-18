@@ -45,7 +45,7 @@ def sigma(u):
 
 
 def clamped_boundary(x, on_boundary):
-    return on_boundary and near(x[2], -1)
+    return on_boundary and near(x[2], min_z)
 
 
 bc = DirichletBC(V, Constant((0, 0, 0)), clamped_boundary)
@@ -53,19 +53,19 @@ bc = DirichletBC(V, Constant((0, 0, 0)), clamped_boundary)
 vtkfile_1 = File('catapult/displacement.pvd')
 vtkfile_2 = File('catapult/von_mises.pvd')
 
-T = 118  # seconds
-omega_0 = 11.639  # rad / s
+T = 5400  # seconds
+omega_0 = 30.367  # rad / s
 eps = omega_0 / T
 alpha = 0
-beta = pi / 6
+beta = 35 * pi / 180
 g = 9.8  # in SI
 rho = 2700  # kg / m3
 u_1, u_2 = Function(V), Function(V)
-dt = 1
-for i in range(int(T / dt)):
+dt = 54
+for ti in range(0, T, dt):
 
-    omega = eps * i * dt
-    gamma = (omega * i * dt) / 2
+    omega = eps * ti
+    gamma = (omega * ti) / 2
     a11 = cos(alpha)*cos(gamma) - cos(beta)*sin(alpha)*sin(gamma)
     a12 = -cos(gamma)*sin(alpha) - cos(alpha)*cos(beta)*sin(gamma)
     a13 = sin(beta)*sin(gamma)
@@ -106,6 +106,6 @@ for i in range(int(T / dt)):
 
     u_1.assign(u)
     u_2.assign(von_Mises)
-    vtkfile_1 << (u_1, i * dt)
-    vtkfile_2 << (u_2, i * dt)
+    vtkfile_1 << (u_1, ti * dt)
+    vtkfile_2 << (u_2, ti * dt)
 

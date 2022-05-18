@@ -106,6 +106,6 @@ for ti in range(0, T, dt):
 
     u_1.assign(u)
     u_2.assign(von_Mises)
-    vtkfile_1 << (u_1, ti * dt)
-    vtkfile_2 << (u_2, ti * dt)
+    vtkfile_1 << (u_1, ti)
+    vtkfile_2 << (u_2, ti)
 
